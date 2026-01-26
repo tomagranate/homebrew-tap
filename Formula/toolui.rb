@@ -4,13 +4,13 @@
 class Toolui < Formula
   desc "Terminal UI for running multiple local dev servers simultaneously"
   homepage "https://github.com/tomagranate/toolui"
-  version "0.2.2"
+  version "0.2.1"
   license "MIT"
 
   on_macos do
     on_arm do
       url "https://github.com/tomagranate/toolui/releases/download/v#{version}/toolui-darwin-arm64.tar.gz"
-      sha256 "dd7057959b3f469694c0d7056151f3207da6ab74cf110555e1b3277fc5ff62bf"
+      sha256 "1ba1e3d0717ab56b2e0ea0619350feebcf08145ac925510dbdb2d8778bef267e"
 
       def install
         bin.install "toolui-darwin-arm64" => "toolui"
@@ -19,7 +19,7 @@ class Toolui < Formula
 
     on_intel do
       url "https://github.com/tomagranate/toolui/releases/download/v#{version}/toolui-darwin-x64.tar.gz"
-      sha256 "69eeeb904308880b6e3fc8a6daa3786cebaf9593196e577522102ea68505adf7"
+      sha256 "413b90dd47fca3e02a70ed5cb11dbf84fa145944c09cadfc7b6a064578f2712c"
 
       def install
         bin.install "toolui-darwin-x64" => "toolui"
@@ -30,7 +30,7 @@ class Toolui < Formula
   on_linux do
     on_arm do
       url "https://github.com/tomagranate/toolui/releases/download/v#{version}/toolui-linux-arm64.tar.gz"
-      sha256 "7ab1ba2adbe8a1a4b9b3651ec883fc5ced8c5bf0820b3d0c4e574ed6d5042ea7"
+      sha256 "170e9c98920a61b82c0666638f595f52c50c79763de876c8f7b208cf900c7751"
 
       def install
         bin.install "toolui-linux-arm64" => "toolui"
@@ -39,7 +39,7 @@ class Toolui < Formula
 
     on_intel do
       url "https://github.com/tomagranate/toolui/releases/download/v#{version}/toolui-linux-x64.tar.gz"
-      sha256 "890e5a482b7307dcb64807d497f76ab184fd9f4089e81f0a2b0a770031919ccd"
+      sha256 "a56372123960f00f81cd2883168c978bdd804f788d2dd07ea6f4c50e54fd08e1"
 
       def install
         bin.install "toolui-linux-x64" => "toolui"
