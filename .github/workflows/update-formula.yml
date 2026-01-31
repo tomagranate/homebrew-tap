@@ -17,6 +17,19 @@ on:
         description: 'Source repository (e.g., tomagranate/toolui)'
         required: true
         type: string
+      desc:
+        description: 'Short description (required for new formulas)'
+        required: false
+        type: string
+      homepage:
+        description: 'Homepage URL (defaults to GitHub repo)'
+        required: false
+        type: string
+      license:
+        description: 'SPDX license identifier (e.g., MIT, Apache-2.0)'
+        required: false
+        type: string
+        default: 'MIT'
 
 permissions:
   contents: write
@@ -35,10 +48,16 @@ jobs:
             echo "formula=${{ github.event.inputs.formula }}" >> $GITHUB_OUTPUT
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
             echo "repo=${{ github.event.inputs.repo }}" >> $GITHUB_OUTPUT
+            echo "desc=${{ github.event.inputs.desc }}" >> $GITHUB_OUTPUT
+            echo "homepage=${{ github.event.inputs.homepage }}" >> $GITHUB_OUTPUT
+            echo "license=${{ github.event.inputs.license }}" >> $GITHUB_OUTPUT
           else
             echo "formula=${{ github.event.client_payload.formula }}" >> $GITHUB_OUTPUT
             echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
             echo "repo=${{ github.event.client_payload.repo }}" >> $GITHUB_OUTPUT
+            echo "desc=${{ github.event.client_payload.desc }}" >> $GITHUB_OUTPUT
+            echo "homepage=${{ github.event.client_payload.homepage }}" >> $GITHUB_OUTPUT
+            echo "license=${{ github.event.client_payload.license }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Download and compute checksums
@@ -47,7 +66,7 @@ jobs:
           VERSION=${{ steps.inputs.outputs.version }}
           REPO=${{ steps.inputs.outputs.repo }}
           FORMULA=${{ steps.inputs.outputs.formula }}
-          
+
           for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
             echo "Downloading ${FORMULA}-${platform}.tar.gz..."
             curl -sLO "https://github.com/${REPO}/releases/download/v${VERSION}/${FORMULA}-${platform}.tar.gz"
@@ -56,20 +75,169 @@ jobs:
             rm "${FORMULA}-${platform}.tar.gz"
           done
 
-      - name: Update formula
+      - name: Create or update formula
+        env:
+          SHA_DARWIN_ARM64: ${{ steps.checksums.outputs.darwin-arm64 }}
+          SHA_DARWIN_X64: ${{ steps.checksums.outputs.darwin-x64 }}
+          SHA_LINUX_ARM64: ${{ steps.checksums.outputs.linux-arm64 }}
+          SHA_LINUX_X64: ${{ steps.checksums.outputs.linux-x64 }}
         run: |
-          VERSION=${{ steps.inputs.outputs.version }}
-          FORMULA_FILE="Formula/${{ steps.inputs.outputs.formula }}.rb"
-          
-          # Update version
-          sed -i "s/version \".*\"/version \"${VERSION}\"/" "$FORMULA_FILE"
-          
-          # Update SHA256 checksums using range patterns
-          # Match from URL line to sha256 line, then replace sha256 within that range
-          sed -i "/darwin-arm64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.checksums.outputs.darwin-arm64 }}\"/}" "$FORMULA_FILE"
-          sed -i "/darwin-x64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.checksums.outputs.darwin-x64 }}\"/}" "$FORMULA_FILE"
-          sed -i "/linux-arm64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.checksums.outputs.linux-arm64 }}\"/}" "$FORMULA_FILE"
-          sed -i "/linux-x64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${{ steps.checksums.outputs.linux-x64 }}\"/}" "$FORMULA_FILE"
+          VERSION="${{ steps.inputs.outputs.version }}"
+          REPO="${{ steps.inputs.outputs.repo }}"
+          FORMULA="${{ steps.inputs.outputs.formula }}"
+          DESC="${{ steps.inputs.outputs.desc }}"
+          HOMEPAGE="${{ steps.inputs.outputs.homepage }}"
+          LICENSE="${{ steps.inputs.outputs.license }}"
+          FORMULA_FILE="Formula/${FORMULA}.rb"
+
+          # Default homepage to GitHub repo if not provided
+          if [ -z "$HOMEPAGE" ]; then
+            HOMEPAGE="https://github.com/${REPO}"
+          fi
+
+          # Default license to MIT if not provided
+          if [ -z "$LICENSE" ]; then
+            LICENSE="MIT"
+          fi
+
+          # Convert formula name to Ruby class name (e.g., my-tool -> MyTool)
+          CLASS_NAME=$(echo "$FORMULA" | sed -r 's/(^|[-_])([a-z])/\U\2/g')
+
+          if [ -f "$FORMULA_FILE" ]; then
+            echo "Updating existing formula..."
+
+            # Update version
+            sed -i "s/version \".*\"/version \"${VERSION}\"/" "$FORMULA_FILE"
+
+            # Update SHA256 checksums using range patterns
+            sed -i "/darwin-arm64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_DARWIN_ARM64}\"/}" "$FORMULA_FILE"
+            sed -i "/darwin-x64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_DARWIN_X64}\"/}" "$FORMULA_FILE"
+            sed -i "/linux-arm64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_LINUX_ARM64}\"/}" "$FORMULA_FILE"
+            sed -i "/linux-x64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_LINUX_X64}\"/}" "$FORMULA_FILE"
+          else
+            echo "Creating new formula..."
+
+            # Ensure Formula directory exists
+            mkdir -p Formula
+
+            # Validate required fields for new formula
+            if [ -z "$DESC" ]; then
+              echo "Error: desc is required when creating a new formula"
+              exit 1
+            fi
+
+            # Generate formula from template
+            {
+              echo "class ${CLASS_NAME} < Formula"
+              echo "  desc \"${DESC}\""
+              echo "  homepage \"${HOMEPAGE}\""
+              echo "  version \"${VERSION}\""
+              echo "  license \"${LICENSE}\""
+              echo ""
+              echo "  on_macos do"
+              echo "    if Hardware::CPU.arm?"
+              echo "      url \"https://github.com/${REPO}/releases/download/v#{version}/${FORMULA}-darwin-arm64.tar.gz\""
+              echo "      sha256 \"${SHA_DARWIN_ARM64}\""
+              echo "    else"
+              echo "      url \"https://github.com/${REPO}/releases/download/v#{version}/${FORMULA}-darwin-x64.tar.gz\""
+              echo "      sha256 \"${SHA_DARWIN_X64}\""
+              echo "    end"
+              echo "  end"
+              echo ""
+              echo "  on_linux do"
+              echo "    if Hardware::CPU.arm?"
+              echo "      url \"https://github.com/${REPO}/releases/download/v#{version}/${FORMULA}-linux-arm64.tar.gz\""
+              echo "      sha256 \"${SHA_LINUX_ARM64}\""
+              echo "    else"
+              echo "      url \"https://github.com/${REPO}/releases/download/v#{version}/${FORMULA}-linux-x64.tar.gz\""
+              echo "      sha256 \"${SHA_LINUX_X64}\""
+              echo "    end"
+              echo "  end"
+              echo ""
+              echo "  def install"
+              echo "    bin.install \"${FORMULA}\""
+              echo "  end"
+              echo "end"
+            } > "$FORMULA_FILE"
+          fi
+
+      - name: Update README
+        run: |
+          # Build the formula table from all formula files
+          TABLE_ROWS=""
+
+          for formula_file in Formula/*.rb; do
+            # Skip if no formula files exist (glob didn't match)
+            [ -e "$formula_file" ] || continue
+
+            # Extract formula name from filename
+            formula_name=$(basename "$formula_file" .rb)
+
+            # Extract desc from formula file
+            desc=$(grep -oP 'desc "\K[^"]+' "$formula_file" 2>/dev/null || echo "")
+
+            # Extract homepage from formula file
+            homepage=$(grep -oP 'homepage "\K[^"]+' "$formula_file" 2>/dev/null || echo "")
+
+            if [ -n "$desc" ]; then
+              TABLE_ROWS="${TABLE_ROWS}| [${formula_name}](${homepage}) | ${desc} |"$'\n'
+            fi
+          done
+
+          # Generate the new README
+          {
+            echo "# homebrew-tap"
+            echo ""
+            echo "A Homebrew tap for installing tools by [tomagranate](https://github.com/tomagranate)."
+            echo ""
+            echo "## Available Formulas"
+            echo ""
+            echo "| Formula | Description |"
+            echo "|---------|-------------|"
+            echo -n "$TABLE_ROWS"
+            echo ""
+            echo "## Installation"
+            echo ""
+            echo "Install a formula directly:"
+            echo ""
+            echo '```bash'
+            echo "brew install tomagranate/tap/<formula-name>"
+            echo '```'
+            echo ""
+            echo "Or add the tap first, then install by name:"
+            echo ""
+            echo '```bash'
+            echo "brew tap tomagranate/tap"
+            echo "brew install <formula-name>"
+            echo '```'
+            echo ""
+            echo "## How It Works"
+            echo ""
+            echo "This tap uses automated formula updates. When a new version of a package is released:"
+            echo ""
+            echo "1. The source repository's release workflow triggers a \`repository_dispatch\` event to this tap"
+            echo "2. The \`update-formula\` workflow downloads the new release artifacts"
+            echo "3. SHA256 checksums are computed for each platform binary"
+            echo "4. The formula is created (if new) or updated with the new version and checksums"
+            echo "5. The README is automatically regenerated with the current formula list"
+            echo "6. Changes are automatically committed and pushed"
+            echo ""
+            echo "This means Homebrew users get access to new versions shortly after release without any manual intervention."
+            echo ""
+            echo "## Adding a New Formula"
+            echo ""
+            echo "To add a new formula, trigger the workflow with:"
+            echo "- \`formula\`: The formula/binary name"
+            echo "- \`version\`: Version number (without v prefix)"
+            echo "- \`repo\`: Source repository (e.g., tomagranate/toolui)"
+            echo "- \`desc\`: Short description (required for new formulas)"
+            echo "- \`homepage\`: Homepage URL (optional, defaults to GitHub repo)"
+            echo "- \`license\`: SPDX license identifier (optional, defaults to MIT)"
+            echo ""
+            echo "## Manual Updates"
+            echo ""
+            echo "The formula can also be updated manually via workflow dispatch if needed—provide the formula name and version number (without the \`v\` prefix)."
+          } > README.md
 
       - name: Commit and push
         run: |
@@ -77,6 +245,6 @@ jobs:
           FORMULA=${{ steps.inputs.outputs.formula }}
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "Formula/${FORMULA}.rb"
+          git add Formula/ README.md
           git commit -m "Update ${FORMULA} to v${VERSION}" || echo "No changes to commit"
           git push
