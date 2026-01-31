@@ -1,6 +1,3 @@
-# Homebrew formula for toolui
-# Copy this to your homebrew-toolui repository at Formula/toolui.rb
-
 class Toolui < Formula
   desc "Terminal UI for running multiple local dev servers simultaneously"
   homepage "https://github.com/tomagranate/toolui"
