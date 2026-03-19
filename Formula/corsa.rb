@@ -1,13 +1,13 @@
 class Corsa < Formula
   desc "TUI dashboard for managing local dev processes"
   homepage "https://github.com/tomagranate/corsa"
-  version "1.1.2"
+  version "1.2.0"
   license "MIT"
 
   on_macos do
     on_arm do
       url "https://github.com/tomagranate/corsa/releases/download/v#{version}/corsa-darwin-arm64.tar.gz"
-      sha256 "7b76c9d0f23f0031080f83542229a8f2b103ea0a49d8c758cea0608707b486f5"
+      sha256 "d69db218d34979692efea81912c4fc3a9a5be7c360b016f1165f2382438caa89"
 
       def install
         bin.install "corsa-darwin-arm64" => "corsa"
@@ -16,7 +16,7 @@ class Corsa < Formula
 
     on_intel do
       url "https://github.com/tomagranate/corsa/releases/download/v#{version}/corsa-darwin-x64.tar.gz"
-      sha256 "482b3d45efb289ab2c20eade929015c5191b43063e8607034877cbff8af5ac6f"
+      sha256 "428c3ad4872334063e9247716fe33def24fb99da130a1156024a002b8dc2545d"
 
       def install
         bin.install "corsa-darwin-x64" => "corsa"
@@ -27,7 +27,7 @@ class Corsa < Formula
   on_linux do
     on_arm do
       url "https://github.com/tomagranate/corsa/releases/download/v#{version}/corsa-linux-arm64.tar.gz"
-      sha256 "0f7beb4d95ae63bbbbf453dc43d292fcb0f3e775e13d8e5a0696cd79aee406a2"
+      sha256 "9ca2433af61fa64364df58435669bb38e41beb081c039a1662755c44907d3db4"
 
       def install
         bin.install "corsa-linux-arm64" => "corsa"
@@ -36,7 +36,7 @@ class Corsa < Formula
 
     on_intel do
       url "https://github.com/tomagranate/corsa/releases/download/v#{version}/corsa-linux-x64.tar.gz"
-      sha256 "fff4daa0462d3857dc19887d6a7b652dfdac7626f6749ca69cf8fd89ee18cd79"
+      sha256 "13b57019a25b3040a71f0be6dc547f99714dfe09ac8fb573fc0d3349d5979779"
 
       def install
         bin.install "corsa-linux-x64" => "corsa"
