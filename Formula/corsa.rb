@@ -11,15 +11,23 @@ class Corsa < Formula
 
       def install
         bin.install "corsa-darwin-arm64" => "corsa"
+        # Bun --compile ships LC_CODE_SIGNATURE that Apple's codesign rejects; macOS may
+        # SIGKILL before the app runs. Releases are re-signed in CI; this fixes existing tarballs.
+        ohai "Applying ad-hoc code signature for macOS compatibility"
+        quiet_system "/usr/bin/codesign", "--remove-signature", bin/"corsa"
+        system "/usr/bin/codesign", "-s", "-", "--force", "--timestamp=none", bin/"corsa"
       end
     end
 
     on_intel do
       url "https://github.com/tomagranate/corsa/releases/download/v#{version}/corsa-darwin-x64.tar.gz"
-      sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
+      sha256 "67164fe1b30ac9e6f7a544dc7d8b6975ddbc2bbbfae38b62ef99a6ab68b1fdf8"
 
       def install
         bin.install "corsa-darwin-x64" => "corsa"
+        ohai "Applying ad-hoc code signature for macOS compatibility"
+        quiet_system "/usr/bin/codesign", "--remove-signature", bin/"corsa"
+        system "/usr/bin/codesign", "-s", "-", "--force", "--timestamp=none", bin/"corsa"
       end
     end
   end
@@ -45,6 +53,6 @@ class Corsa < Formula
   end
 
   test do
-    assert_match "corsa", shell_output("#{bin}/corsa --help")
+    assert_match "corsa", shell_output("#{bin}/corsa --version")
   end
 end
