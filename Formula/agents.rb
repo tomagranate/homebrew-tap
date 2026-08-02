@@ -1,8 +1,8 @@
 class Agents < Formula
   desc "Sync and inspect global AGENTS.md + skills across AI coding harnesses"
   homepage "https://github.com/tomagranate/agents"
-  url "https://github.com/tomagranate/agents/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "d82447f9f39dbaed2b437d420492332997edbe4228409ff8dccd854151152f7e"
+  url "https://github.com/tomagranate/agents/archive/refs/tags/v0.2.0.tar.gz"
+  sha256 "72799651f0affc39e751f00625eccc844b7b6fac9c2942f8387afe489d71fed0"
   license "MIT"
   head "https://github.com/tomagranate/agents.git", branch: "main"
 
@@ -13,13 +13,16 @@ class Agents < Formula
 
   def caveats
     <<~EOS
-      Scaffold config and wire Claude / Codex / Grok / OpenCode:
+      Multi-machine content (private repo):
 
-        agents init
+        git clone git@github.com:tomagranate/agents-home.git ~/.agents
         agents sync
 
-      Shared rules live in ~/.agents/AGENTS.md
-      Harness-only rules live in ~/.agents/harness/<name>.md
+      Or scaffold empty templates:
+
+        agents init
+
+      Day to day: agents pull / agents push -m "msg"
     EOS
   end
 
