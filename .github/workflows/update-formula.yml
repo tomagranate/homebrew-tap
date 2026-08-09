@@ -30,6 +30,14 @@ on:
         required: false
         type: string
         default: 'MIT'
+      asset_style:
+        description: 'Release asset naming style'
+        required: false
+        type: choice
+        options:
+          - portable
+          - rust-target
+        default: portable
 
 permissions:
   contents: write
@@ -43,44 +51,106 @@ jobs:
 
       - name: Get inputs
         id: inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_FORMULA: ${{ inputs.formula }}
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_REPO: ${{ inputs.repo }}
+          INPUT_DESC: ${{ inputs.desc }}
+          INPUT_HOMEPAGE: ${{ inputs.homepage }}
+          INPUT_LICENSE: ${{ inputs.license }}
+          INPUT_ASSET_STYLE: ${{ inputs.asset_style }}
+          PAYLOAD_FORMULA: ${{ github.event.client_payload.formula }}
+          PAYLOAD_VERSION: ${{ github.event.client_payload.version }}
+          PAYLOAD_REPO: ${{ github.event.client_payload.repo }}
+          PAYLOAD_DESC: ${{ github.event.client_payload.desc }}
+          PAYLOAD_HOMEPAGE: ${{ github.event.client_payload.homepage }}
+          PAYLOAD_LICENSE: ${{ github.event.client_payload.license }}
+          PAYLOAD_ASSET_STYLE: ${{ github.event.client_payload.asset_style }}
+        shell: bash
         run: |
-          if [ -n "${{ github.event.inputs.formula }}" ]; then
-            echo "formula=${{ github.event.inputs.formula }}" >> $GITHUB_OUTPUT
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-            echo "repo=${{ github.event.inputs.repo }}" >> $GITHUB_OUTPUT
-            echo "desc=${{ github.event.inputs.desc }}" >> $GITHUB_OUTPUT
-            echo "homepage=${{ github.event.inputs.homepage }}" >> $GITHUB_OUTPUT
-            echo "license=${{ github.event.inputs.license }}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            {
+              echo "formula=$INPUT_FORMULA"
+              echo "version=$INPUT_VERSION"
+              echo "repo=$INPUT_REPO"
+              echo "desc=$INPUT_DESC"
+              echo "homepage=$INPUT_HOMEPAGE"
+              echo "license=$INPUT_LICENSE"
+              echo "asset_style=$INPUT_ASSET_STYLE"
+            } >> "$GITHUB_OUTPUT"
           else
-            echo "formula=${{ github.event.client_payload.formula }}" >> $GITHUB_OUTPUT
-            echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
-            echo "repo=${{ github.event.client_payload.repo }}" >> $GITHUB_OUTPUT
-            echo "desc=${{ github.event.client_payload.desc }}" >> $GITHUB_OUTPUT
-            echo "homepage=${{ github.event.client_payload.homepage }}" >> $GITHUB_OUTPUT
-            echo "license=${{ github.event.client_payload.license }}" >> $GITHUB_OUTPUT
+            {
+              echo "formula=$PAYLOAD_FORMULA"
+              echo "version=$PAYLOAD_VERSION"
+              echo "repo=$PAYLOAD_REPO"
+              echo "desc=$PAYLOAD_DESC"
+              echo "homepage=$PAYLOAD_HOMEPAGE"
+              echo "license=$PAYLOAD_LICENSE"
+              echo "asset_style=$PAYLOAD_ASSET_STYLE"
+            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download and compute checksums
         id: checksums
+        shell: bash
         run: |
-          VERSION=${{ steps.inputs.outputs.version }}
-          REPO=${{ steps.inputs.outputs.repo }}
-          FORMULA=${{ steps.inputs.outputs.formula }}
+          set -euo pipefail
 
-          for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
-            echo "Downloading ${FORMULA}-${platform}.tar.gz..."
-            curl -sLO "https://github.com/${REPO}/releases/download/v${VERSION}/${FORMULA}-${platform}.tar.gz"
-            SHA=$(shasum -a 256 "${FORMULA}-${platform}.tar.gz" | cut -d' ' -f1)
-            echo "${platform}=${SHA}" >> $GITHUB_OUTPUT
-            rm "${FORMULA}-${platform}.tar.gz"
+          VERSION="${{ steps.inputs.outputs.version }}"
+          REPO="${{ steps.inputs.outputs.repo }}"
+          FORMULA="${{ steps.inputs.outputs.formula }}"
+          ASSET_STYLE="${{ steps.inputs.outputs.asset_style }}"
+          ASSET_STYLE="${ASSET_STYLE:-portable}"
+
+          case "$ASSET_STYLE" in
+            portable)
+              ASSETS=(
+                "darwin_arm64:${FORMULA}-darwin-arm64.tar.gz"
+                "darwin_x64:${FORMULA}-darwin-x64.tar.gz"
+                "linux_arm64:${FORMULA}-linux-arm64.tar.gz"
+                "linux_x64:${FORMULA}-linux-x64.tar.gz"
+              )
+              ;;
+            rust-target)
+              ASSETS=(
+                "darwin_arm64:${FORMULA}-aarch64-apple-darwin.tar.gz"
+                "darwin_x64:${FORMULA}-x86_64-apple-darwin.tar.gz"
+                "linux_arm64:${FORMULA}-aarch64-unknown-linux-gnu.tar.gz"
+                "linux_x64:${FORMULA}-x86_64-unknown-linux-gnu.tar.gz"
+              )
+              ;;
+            *)
+              echo "Unsupported asset style: $ASSET_STYLE" >&2
+              exit 1
+              ;;
+          esac
+
+          for spec in "${ASSETS[@]}"; do
+            key="${spec%%:*}"
+            asset="${spec#*:}"
+            url="https://github.com/${REPO}/releases/download/v${VERSION}/${asset}"
+
+            echo "Downloading ${asset}..."
+            curl --fail --location --silent --show-error --retry 3 --output "$asset" "$url"
+            sha=$(shasum -a 256 "$asset" | cut -d' ' -f1)
+            echo "sha_${key}=${sha}" >> "$GITHUB_OUTPUT"
+            echo "asset_${key}=${asset}" >> "$GITHUB_OUTPUT"
+            rm "$asset"
           done
 
       - name: Create or update formula
         env:
-          SHA_DARWIN_ARM64: ${{ steps.checksums.outputs.darwin-arm64 }}
-          SHA_DARWIN_X64: ${{ steps.checksums.outputs.darwin-x64 }}
-          SHA_LINUX_ARM64: ${{ steps.checksums.outputs.linux-arm64 }}
-          SHA_LINUX_X64: ${{ steps.checksums.outputs.linux-x64 }}
+          SHA_DARWIN_ARM64: ${{ steps.checksums.outputs.sha_darwin_arm64 }}
+          SHA_DARWIN_X64: ${{ steps.checksums.outputs.sha_darwin_x64 }}
+          SHA_LINUX_ARM64: ${{ steps.checksums.outputs.sha_linux_arm64 }}
+          SHA_LINUX_X64: ${{ steps.checksums.outputs.sha_linux_x64 }}
+          ASSET_DARWIN_ARM64: ${{ steps.checksums.outputs.asset_darwin_arm64 }}
+          ASSET_DARWIN_X64: ${{ steps.checksums.outputs.asset_darwin_x64 }}
+          ASSET_LINUX_ARM64: ${{ steps.checksums.outputs.asset_linux_arm64 }}
+          ASSET_LINUX_X64: ${{ steps.checksums.outputs.asset_linux_x64 }}
         run: |
           VERSION="${{ steps.inputs.outputs.version }}"
           REPO="${{ steps.inputs.outputs.repo }}"
@@ -109,11 +179,40 @@ jobs:
             # Update version
             sed -i "s/version \".*\"/version \"${VERSION}\"/" "$FORMULA_FILE"
 
-            # Update SHA256 checksums using range patterns
-            sed -i "/darwin-arm64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_DARWIN_ARM64}\"/}" "$FORMULA_FILE"
-            sed -i "/darwin-x64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_DARWIN_X64}\"/}" "$FORMULA_FILE"
-            sed -i "/linux-arm64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_LINUX_ARM64}\"/}" "$FORMULA_FILE"
-            sed -i "/linux-x64\.tar\.gz/,/sha256/{s/sha256 \".*\"/sha256 \"${SHA_LINUX_X64}\"/}" "$FORMULA_FILE"
+            # Use the formula version in all release URLs.
+            sed -E -i 's|/releases/download/v[^/]+/|/releases/download/v#{version}/|g' "$FORMULA_FILE"
+
+            # Match each release asset exactly before replacing its checksum.
+            python3 - "$FORMULA_FILE" <<'PY'
+          import os
+          import re
+          import sys
+
+          formula_path = sys.argv[1]
+          with open(formula_path, encoding="utf-8") as formula_file:
+              formula = formula_file.read()
+
+          assets = (
+              (os.environ["ASSET_DARWIN_ARM64"], os.environ["SHA_DARWIN_ARM64"]),
+              (os.environ["ASSET_DARWIN_X64"], os.environ["SHA_DARWIN_X64"]),
+              (os.environ["ASSET_LINUX_ARM64"], os.environ["SHA_LINUX_ARM64"]),
+              (os.environ["ASSET_LINUX_X64"], os.environ["SHA_LINUX_X64"]),
+          )
+
+          for asset, checksum in assets:
+              pattern = rf'({re.escape(asset)}.*?\n\s*sha256 ")[^"]+(\")'
+              formula, count = re.subn(
+                  pattern,
+                  lambda match: f"{match.group(1)}{checksum}{match.group(2)}",
+                  formula,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit(f"Expected one checksum for {asset}; found {count}")
+
+          with open(formula_path, "w", encoding="utf-8") as formula_file:
+              formula_file.write(formula)
+          PY
           else
             echo "Creating new formula..."
 
