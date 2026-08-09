@@ -1,33 +1,46 @@
 class Agents < Formula
-  desc "Sync and inspect global AGENTS.md + skills across AI coding harnesses"
+  desc "Manage shared AI agent configuration and chat archives"
   homepage "https://github.com/tomagranate/agents"
-  url "https://github.com/tomagranate/agents/archive/refs/tags/v0.2.0.tar.gz"
-  sha256 "72799651f0affc39e751f00625eccc844b7b6fac9c2942f8387afe489d71fed0"
+  version "0.5.0"
   license "MIT"
   head "https://github.com/tomagranate/agents.git", branch: "main"
 
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/tomagranate/agents/releases/download/v0.5.0/agents-aarch64-apple-darwin.tar.gz"
+      sha256 "54c16fa0d921fdf3640850eaec0b818e29579840603eecc1ff4987716a21a111"
+    else
+      url "https://github.com/tomagranate/agents/releases/download/v0.5.0/agents-x86_64-apple-darwin.tar.gz"
+      sha256 "0979c92051f353edddcf0c3c4227110664a5944e6f1ffa4ad75647ff25d93f56"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/tomagranate/agents/releases/download/v0.5.0/agents-aarch64-unknown-linux-gnu.tar.gz"
+      sha256 "f1f2d9387c9d04602cd18a36033766e4912929c55e5ade5b93442ef06814d0f5"
+    else
+      url "https://github.com/tomagranate/agents/releases/download/v0.5.0/agents-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "cb94ac4e31df81352753ce2dd0ff7df2c3658dcaaaccbb8394e016f57e5632d6"
+    end
+  end
+
   def install
-    bin.install "bin/agents"
-    (pkgshare/"templates").install Dir["share/templates/*"]
+    bin.install "agents"
   end
 
   def caveats
     <<~EOS
-      Multi-machine content (private repo):
+      Initialize or clone your private agents-home repository, then run:
 
-        git clone git@github.com:tomagranate/agents-home.git ~/.agents
         agents sync
 
-      Or scaffold empty templates:
-
-        agents init
-
-      Day to day: agents pull / agents push -m "msg"
+      Use `agents status` to inspect local and remote state.
     EOS
   end
 
   test do
-    assert_match "agents", shell_output("#{bin}/agents version")
-    assert_match "Usage", shell_output("#{bin}/agents help")
+    assert_match "agents 0.5.0", shell_output("#{bin}/agents version")
+    assert_match "Usage: agents", shell_output("#{bin}/agents --help")
   end
 end
