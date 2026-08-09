@@ -6,7 +6,7 @@ A Homebrew tap for installing tools by [tomagranate](https://github.com/tomagran
 
 | Formula | Description |
 |---------|-------------|
-| [agents](https://github.com/tomagranate/agents) | Sync and inspect global AGENTS.md + skills across AI coding harnesses |
+| [agents](https://github.com/tomagranate/agents) | Manage shared AI agent configuration and chat archives |
 | [corsa](https://github.com/tomagranate/corsa) | TUI dashboard for managing local dev processes |
 
 ## Installation
