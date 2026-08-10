@@ -42,6 +42,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: homebrew-formula-updates
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest
