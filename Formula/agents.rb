@@ -1,27 +1,27 @@
 class Agents < Formula
   desc "Manage shared AI agent configuration and chat archives"
   homepage "https://github.com/tomagranate/agents"
-  version "0.8.3"
+  version "0.8.4"
   license "MIT"
   head "https://github.com/tomagranate/agents.git", branch: "main"
 
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/tomagranate/agents/releases/download/v#{version}/agents-aarch64-apple-darwin.tar.gz"
-      sha256 "a4c0be83fa71ae2cb70aa933170c51fba6f903cfbccf1a0ea8aaa11d2fa384a5"
+      sha256 "98ae2a7a05021ad52424828e31bab64a0f8002d2814fec0380aa6f7c62afeb2b"
     else
       url "https://github.com/tomagranate/agents/releases/download/v#{version}/agents-x86_64-apple-darwin.tar.gz"
-      sha256 "c0ad5c8763d921b78c19cd7c879b7d40c1c1fc4c3ad1d9b3c34801d8fb3b8709"
+      sha256 "5d440c18e038436496a1a9de382e798e8db64b74e0324efa9799e8f0feebe23f"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
       url "https://github.com/tomagranate/agents/releases/download/v#{version}/agents-aarch64-unknown-linux-gnu.tar.gz"
-      sha256 "5ca9030750e9b5e9757720339ddac4294349d325fbadfa99f0f8b711f33b5dbd"
+      sha256 "9191eca2d7e7baa0ff160a7ed048da1de6cd7061ca310024cc7ce5672fdd753b"
     else
       url "https://github.com/tomagranate/agents/releases/download/v#{version}/agents-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "32440bf18dab3f89dcb2a9110f171d6b2f853c0a1a58ce034f80175a384e18a9"
+      sha256 "8d988cbedbe4a1fb4d14044cdb16ba1434338468bc75f721208d7cf89f920949"
     end
   end
 
